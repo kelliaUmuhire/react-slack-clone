@@ -18,6 +18,7 @@ export default class MessageForm extends Component {
     uploadTask: null,
     storageRef: firebase.storage().ref(),
     percentUploaded: 0,
+    typingRef: firebase.database().ref("typing"),
   };
   handleChange = (event) => {
     this.setState({ [event.target.name]: event.target.value });
@@ -28,7 +29,7 @@ export default class MessageForm extends Component {
 
   sendMessage = () => {
     const { getMessagesRef } = this.props;
-    const { message, channel } = this.state;
+    const { message, channel, typingRef, user } = this.state;
 
     if (message) {
       this.setState({ loading: true });
@@ -45,6 +46,7 @@ export default class MessageForm extends Component {
             loading: false,
             errors: this.state.errors.concat(err),
           });
+          typingRef.child(channel.id).child(user.uid).remove();
         });
     } else {
       this.setState({
@@ -74,48 +76,6 @@ export default class MessageForm extends Component {
     return message;
   };
 
-  //   uploadFile = (file, metadata) => {
-  //     const pathToUpload = this.state.channel.id;
-  //     const ref = this.props.messagesRef;
-  //     const filePath = `chat/public/${uuidv4()}.jpg`;
-
-  //     this.setState(
-  //       {
-  //         uploadState: "uploading",
-  //         uploadTask: this.state.storageRef.child(filePath).put(file, metadata),
-  //       },
-  //       () => {
-  //         this.state.uploadTask.on("state_changed", (snap) => {
-  //           const percentUploaded =
-  //             Math.round(snap.bytesTransferred / snap.totalBytes) * 100;
-  //           this.setState({ percentUploaded });
-  //         });
-  //       },
-  //       (err) => {
-  //         console.log(err);
-  //         this.setState({
-  //           errors: this.state.errors.concat(err),
-  //           uploadState: "error",
-  //           uploadTask: null,
-  //         });
-  //       },
-  //       () => {
-  //         this.state.uploadTask.snapshot.ref
-  //           .getDownloadURL()
-  //           .then((downloadUrl) => {
-  //             this.sendFileMessage(downloadUrl, ref, pathToUpload);
-  //           })
-  //           .catch((err) => {
-  //             console.log(err);
-  //             this.setState({
-  //               errors: this.state.errors.concat(err),
-  //               uploadState: "error",
-  //               uploadTask: null,
-  //             });
-  //           });
-  //       }
-  //     );
-  //   };
   getPath = () => {
     if (this.props.isPrivateChannel) {
       return `chat/private-${this.state.channel.id}`;
@@ -185,6 +145,16 @@ export default class MessageForm extends Component {
         });
       });
   };
+
+  handleKeyDown = () => {
+    const { message, typingRef, channel, user } = this.state;
+
+    if (message) {
+      typingRef.child(channel.id).child(user.uid).set(user.displayName);
+    } else {
+      typingRef.child(channel.id).child(user.uid).remove();
+    }
+  };
   render() {
     const {
       errors,
@@ -200,6 +170,7 @@ export default class MessageForm extends Component {
           fluid
           name="message"
           onChange={this.handleChange}
+          onKeyDown={this.handleKeyDown}
           style={{ marginBottom: "0.7em" }}
           label={<Button icon={"add"} />}
           labelPosition="left"
